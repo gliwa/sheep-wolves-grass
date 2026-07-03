@@ -1,0 +1,14 @@
+{
+  "name": "@swg/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --sourcemap --outfile=dist/index.js",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@swg/shared": "*"
+  }
+}

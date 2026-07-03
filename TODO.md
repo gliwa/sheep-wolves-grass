@@ -26,7 +26,9 @@ order, chess-move semantics — are resolved in [SPEC.md](./SPEC.md) /
    (note it in SPEC) or add a round timeout?
 
 ## Work Breakdown Structure (WBS)
-1. **Setup/infra** — monorepo scaffold, TS build, dev reload, lint/format, README/LICENSE
+1. ✅ **Setup/infra** — monorepo scaffold, TS build, dev reload, lint/format, README/LICENSE
+   *(done 2026-07-03: npm workspaces `shared`/`server`/`client`, strict TS, esbuild
+   bundles, tsx watch, ESLint 9 + Prettier, vitest, MIT license)*
 2. **Shared model & protocol** — config schema, game-state model, play-API messages,
    state machines, pure rules module
 3. **Server engine** — field/entities, placement, movement & random-conflict resolution,

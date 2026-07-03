@@ -22,6 +22,7 @@ pnpm-debug.log*
 .env.*
 !.env.example
 config.local.json
+.npmrc
 
 # Editor / OS
 .vscode/

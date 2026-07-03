@@ -1,0 +1,5 @@
+# Prettier formats code only; the markdown docs are hand-wrapped.
+*.md
+node_modules/
+dist/
+package-lock.json

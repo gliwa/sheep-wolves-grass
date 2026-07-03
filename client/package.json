@@ -1,0 +1,13 @@
+{
+  "name": "@swg/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --format=esm --sourcemap --outdir=dist --servedir=. --serve=127.0.0.1:5173",
+    "build": "esbuild src/main.ts --bundle --format=esm --minify --sourcemap --outdir=dist"
+  },
+  "dependencies": {
+    "@swg/shared": "*"
+  }
+}
