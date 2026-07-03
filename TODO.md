@@ -4,8 +4,26 @@ See [SPEC.md](./SPEC.md) for the specification and [DECISIONS.md](./DECISIONS.md
 for resolved design choices.
 
 ## Open questions
-**None** — all resolved. The spec is locked; see [DECISIONS.md](./DECISIONS.md)
-for the full rationale (#1–#21, #6b). Ready to start on WBS item 1.
+Smaller issues from the 2026-07-03 spec review, deferred for later. (The larger
+rule gaps from that review — sheep/wolf co-location, round-end check, tick phase
+order, chess-move semantics — are resolved in [SPEC.md](./SPEC.md) /
+[DECISIONS.md](./DECISIONS.md).) None of these block WBS item 1.
+
+1. **`cfgMaxNofPlayers` lower bound** — currently 1, but a 1-player round starts
+   with a single sheep and would end immediately, and the auto-add-bot rule needs
+   room for a second player. Raise the minimum to 2?
+2. **Placement orientation** — "wolf, sheep to its right" puts the sheep inside the
+   wall when a pair sits at a right-edge corner; define an orientation fallback.
+3. **Cross-parameter validation** — `cfgMaxNofPlayers` is *live* but `cfgColors`
+   (length ≥ max players) is *next-round*, so raising the cap mid-round can break
+   the constraint. Also define behavior (clamp or reject) for
+   `cfgInitialNofGrass > cfgMaxNofGrass` and for
+   `cfgInitialNofGrass + 2 × players > interior cells`.
+4. **Play-screen keys** — only movement keys are specified; is `E` (exit) available
+   mid-round? DECISIONS #11 implies yes.
+5. **Round termination** — "one sheep left" guarantees the end state is *reachable*,
+   not that rounds end: two cautious players can graze forever. Accept by design
+   (note it in SPEC) or add a round timeout?
 
 ## Work Breakdown Structure (WBS)
 1. **Setup/infra** — monorepo scaffold, TS build, dev reload, lint/format, README/LICENSE

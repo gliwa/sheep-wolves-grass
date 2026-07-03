@@ -7,13 +7,17 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
 
 ## Resolved
 
-1. **Round end.** Round ends when only one sheep remains alive (last-but-one
-   eaten). Guarantees termination — the sole survivor has no possible predator.
-2. **Same-target tick conflict.** If multiple entities try to enter the same cell
-   in one tick, a random winner moves; the others hold for that tick.
+1. **Round end.** Round ends when **at most one** sheep remains alive. *(Amended
+   2026-07-03: check is ≤ 1, not exactly 1 — two wolves can eat the last two sheep
+   in the same tick.)* The sole survivor, if any, has no possible predator.
+2. **Same-target tick conflict.** *(Refined by #23.)* If multiple entities of the
+   **same type** try to enter the same cell in one tick, a random winner moves; the
+   others hold. A sheep/wolf contest is deterministic under the phase model: the
+   sheep arrives first (phase c) and the wolf eats it (phase d).
 3. **Move rate.** At most one command per entity per tick; holding a key gives
    continuous movement (client repeats, server applies ≤1 per tick).
 4. **Slip-past.** A sheep may pass a wolf on a same-tick cell swap (no eat).
+   *(Now a consequence of the #23 phase order, not a separate rule.)*
 5. **Screens.** Hold screen removed — only start + play screens.
 6. **Chess activation.** Activates when voted share ≥ `cfgChessVoteThreshold`;
    default 100% (all). Not voting = a vote against.
@@ -28,10 +32,11 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     leaves; a reload creates a brand-new player (no session-token reclaim in v1).
 14. **Lobby.** Single global lobby per server.
 15. **Stats.** Player stats are in-memory only (reset on server restart).
-16. **Cell occupancy invariant.** Two entities can **never** share a cell — the
-    same-target conflict rule (#2), the slip-past swap (#4), and eat-removes-the-sheep
-    together guarantee it. Rendering therefore needs no entity-vs-entity priority;
-    the only rule is that an entity hides any grass beneath it.
+16. **Cell occupancy invariant.** At the end of every tick, every cell holds at
+    most one thing — grass, a sheep, or a wolf *(amended 2026-07-03 by #23 and
+    #25)*. Sheep/foreign-wolf co-location can occur transiently *within* a tick
+    and is resolved by the end-of-tick kill sweep, so it is never rendered.
+    Nothing is ever hidden beneath a creature; rendering needs no priority rules.
 9. **Auto-start timer.** The `cfgStartTimeout` countdown starts when the first
    player presses `P` (ready) and **resets whenever a new player joins**, so
    newcomers always get time to ready up.
@@ -78,6 +83,30 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     `cfgAllowClientOverrides` flag is on (off in production, so a crafted URL can't
     retune a live server); the flag itself can't be set via query param. Full
     parameter table and resolution rules in [SPEC.md](./SPEC.md) → Configuration.
+23. **Tick phase model & unified kill rule** *(2026-07-03)*. Each tick: **(a)**
+    collect input (≤1 command per entity); **(b)** validate — walls, own entities,
+    and same-type entities are invalid targets, so the only permitted collisions
+    are wolf→foreign sheep and sheep→foreign wolf; **(c)** move all sheep, eat
+    grass; **(d)** move all wolves; **(e)** kill sweep — every sheep sharing a
+    cell with another player's wolf is eaten, regardless of who moved onto whom
+    (the wolf's owner scores `cfgSheepKillBonus`; lonely wolves included, which
+    subsumes the former separate lonely-wolf eat rule) — then the round-end check
+    (≤ 1 sheep). Ticks therefore always end with at most one entity per cell.
+    Refines #2 (random winner only among same-type movers; a sheep/wolf contest
+    is deterministic — the sheep arrives first, the sweep kills it), makes #4
+    emergent (a swap leaves no co-location at sweep time; likewise a wolf moving
+    away spares a sheep that stepped onto it), amends #16.
+24. **Chess turn input** *(2026-07-03)*. One move for one entity (sheep **or**
+    wolf) per player per turn; a move against a wall is a legal pass. Knocked-out
+    and exited players have nothing to move and are excluded from the all-inputs
+    wait (otherwise the turn could never advance).
+25. **Wolves trample grass** *(2026-07-03)*. A wolf landing on grass destroys it —
+    it vanishes, nobody scores. Together with sheep eating grass on arrival, this
+    makes the occupancy invariant (#16) total: there is no "grass hidden under a
+    creature" state to track or restore on departure. Consequences: grass growth
+    targets only empty cells (a spawn with no empty cell available is skipped),
+    and a wolf can deliberately deny grazing points by trampling — an intended
+    strategic option.
 
 ---
 

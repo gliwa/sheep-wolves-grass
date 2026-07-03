@@ -34,37 +34,63 @@ questions.
 - Sheep = lowercase letter, wolf = uppercase letter, per player (a/A, b/B, …).
   Each player has an individual color (sheep and wolf share it, distinguished by
   case); palette in `cfgColors`. Grass = `,`.
-- **Invariant:** two entities never share a cell (guaranteed by the movement and
-  eating rules below). An entity always hides any grass beneath it; no
-  entity-vs-entity render priority is needed.
+- **Occupancy invariant:** at the end of every tick, every cell holds **at most
+  one thing** — grass, a sheep, or a wolf. Sheep eat grass they land on, wolves
+  **trample** it (see Eating & scoring), so nothing is ever hidden beneath a
+  creature. Sheep/foreign-wolf co-location can occur transiently *within* a tick,
+  but the end-of-tick kill sweep (see tick phases below) resolves it before
+  anything is rendered. Rendering therefore needs no priority rules at all.
 
-### Movement (real-time mode)
+### Movement & tick resolution
 - Sheep moves with cursor keys; wolf with Shift+cursor. A user moves only one at a time.
 - **At most one move command per entity per tick.** Holding a key produces
   continuous movement (client repeats the command; server applies ≤1 per tick).
-- **Simultaneous same-target resolution:** if two or more entities try to move
-  into the same cell in one tick, a **random** one is chosen to complete the move;
-  the others stay put for that tick.
-- **Slip-past allowed:** a sheep and wolf that swap cells in a single tick pass
-  through each other — no eat occurs on a pass-through.
+- **Each tick runs in fixed phases** (in chess mode a turn is one tick):
+  - **(a) Collect input** (≤1 command per entity).
+  - **(b) Validate:** a move is rejected (no-op) if its target — positions as of
+    tick start — is a wall, one of the player's **own** entities, or a **same-type**
+    entity (sheep→any sheep, wolf→any wolf). The only permitted collisions are
+    wolf→foreign sheep and sheep→foreign wolf, both resolved by the kill sweep (e).
+  - **(c) Move all sheep;** a sheep landing on grass eats it (+1 point). If several
+    sheep target the same cell, a **random** one moves; the others hold.
+  - **(d) Move all wolves;** a wolf landing on grass **tramples** it (the grass
+    vanishes, nobody scores). Same random-winner rule among wolves contesting one
+    cell.
+  - **(e) Kill sweep:** every sheep now sharing a cell with another player's wolf
+    is eaten (see Eating & scoring) — regardless of who moved onto whom. Then the
+    round-end check (≤ 1 sheep alive).
+- **Consequences of the phase order** (no extra rules needed):
+  - *Slip-past:* a sheep steps onto a wolf's cell (c), the wolf steps onto the
+    sheep's old cell (d) — at sweep time they have swapped, no kill. Equally, a
+    wolf that moves away in (d) spares a sheep that stepped onto it in (c).
+  - *Contested cell:* if a sheep and a wolf move into the same empty cell in one
+    tick, the sheep arrives first (c), the wolf lands on it (d), the sweep kills
+    it (e).
+  - Every tick ends with **at most one entity per cell** — co-location exists only
+    transiently between (c) and (e) and is never rendered.
 
 ### Eating & scoring
 - Sheep onto grass: grass disappears, that player +1 point.
-- Wolf onto another player's sheep: sheep eaten, that player out of the round,
-  wolf's player +`cfgSheepKillBonus` points.
-- A wolf cannot eat its **own** player's sheep.
+- Wolf onto grass: the grass is **trampled** — it vanishes, nobody scores.
+- **Kill rule (one rule covers all cases):** in the end-of-tick kill sweep
+  (phase e), any sheep sharing a cell with another player's wolf is eaten — whether
+  the wolf moved onto the sheep, the sheep moved onto the wolf, or both moved and
+  met. The wolf's owner gains `cfgSheepKillBonus` points and the sheep's player is
+  out of the round.
+- A wolf can never kill its **own** player's sheep (own entities are invalid move
+  targets, phase b).
 - When a player's sheep is eaten, that player's wolf remains on the field but is
-  **uncontrollable** ("lonely wolf"). If another player's sheep moves onto a lonely
-  wolf, the sheep is eaten and the lonely wolf's owner gains `cfgSheepKillBonus`
-  (a knocked-out player can still score this way).
+  **uncontrollable** ("lonely wolf"). The kill rule applies unchanged to lonely
+  wolves: a sheep stepping onto one is eaten in that tick's sweep, and the
+  knocked-out owner still scores the bonus.
 
 ### Round lifecycle
 - **Start:** `cfgInitialNofGrass` grass placed at random; each player's wolf+sheep
   placed as an adjacent pair (wolf, sheep to its right), pairs positioned to
   **maximize the minimum pairwise distance** between pairs (corners for 2/4 players,
   evenly distributed otherwise). Initial grass and pairs must not overlap.
-- **End:** the round ends **once only one sheep remains alive** (i.e. when the
-  last-but-one sheep is eaten). This guarantees termination — the sole survivor
+- **End:** the round ends once **at most one** sheep remains alive (≤ 1 — two
+  wolves can eat the last two sheep in the same tick). The sole survivor, if any,
   has no possible predator. Highest score at that moment wins the round.
 - After the round: return to start screen; accumulate each player's rounds+score.
   Bots → 'ready to play', human players → 'waiting for others to join'.
@@ -74,6 +100,8 @@ questions.
   `cfgMaxNofGrass`.
 - **Chess mode:** grass grows once every `cfgChessTicksPerGrassGrow` ticks (not
   wall-clock), capped at `cfgMaxNofGrass`. *(future: randomize, e.g. every 2–6 ticks)*
+- New grass appears only on **empty** cells (never beneath a sheep or wolf); if no
+  empty cell exists at spawn time, that spawn is skipped, not deferred.
 
 ### Screens
 - Two screen modes only: **start screen** and **play screen**. (The "hold screen"
@@ -94,10 +122,13 @@ questions.
 - Players vote with `C`. Chess mode activates for the next round when the share of
   players who voted ≥ `cfgChessVoteThreshold`. Default 100% = **all** players must
   vote. Not voting = a vote **against** chess.
-- Turn logic: the field updates only after all players' inputs for the turn are
-  collected, **or** the per-turn timeout `cfgChessTurnTimeout` elapses — then the
-  turn advances with whatever inputs arrived (missing players simply don't move
-  that turn).
+- A player's turn input is **one move for one entity** — either their sheep or
+  their wolf. (A move against a wall is legal and acts as a "pass".)
+- Turn logic: the field updates only after all **eligible** players' inputs for the
+  turn are collected, **or** the per-turn timeout `cfgChessTurnTimeout` elapses —
+  then the turn advances with whatever inputs arrived (missing players simply don't
+  move that turn). Knocked-out and exited players have nothing to move and are
+  excluded from the wait.
 - Bots always provide their turn input promptly, and always vote **against** chess
   (a lone human can never be forced into chess mode).
 
