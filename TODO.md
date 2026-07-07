@@ -7,21 +7,15 @@ for resolved design choices.
 Smaller issues from the 2026-07-03 spec review, deferred for later. (The larger
 rule gaps from that review — sheep/wolf co-location, round-end check, tick phase
 order, chess-move semantics — are resolved in [SPEC.md](./SPEC.md) /
-[DECISIONS.md](./DECISIONS.md).) None of these block WBS item 1.
+[DECISIONS.md](./DECISIONS.md). The former questions on the `cfgMaxNofPlayers`
+lower bound and on cross-parameter validation were resolved 2026-07-07 →
+[DECISIONS.md](./DECISIONS.md) #26/#27.)
 
-1. **`cfgMaxNofPlayers` lower bound** — currently 1, but a 1-player round starts
-   with a single sheep and would end immediately, and the auto-add-bot rule needs
-   room for a second player. Raise the minimum to 2?
-2. **Placement orientation** — "wolf, sheep to its right" puts the sheep inside the
+1. **Placement orientation** — "wolf, sheep to its right" puts the sheep inside the
    wall when a pair sits at a right-edge corner; define an orientation fallback.
-3. **Cross-parameter validation** — `cfgMaxNofPlayers` is *live* but `cfgColors`
-   (length ≥ max players) is *next-round*, so raising the cap mid-round can break
-   the constraint. Also define behavior (clamp or reject) for
-   `cfgInitialNofGrass > cfgMaxNofGrass` and for
-   `cfgInitialNofGrass + 2 × players > interior cells`.
-4. **Play-screen keys** — only movement keys are specified; is `E` (exit) available
+2. **Play-screen keys** — only movement keys are specified; is `E` (exit) available
    mid-round? DECISIONS #11 implies yes.
-5. **Round termination** — "one sheep left" guarantees the end state is *reachable*,
+3. **Round termination** — "one sheep left" guarantees the end state is *reachable*,
    not that rounds end: two cautious players can graze forever. Accept by design
    (note it in SPEC) or add a round timeout?
 
@@ -29,8 +23,13 @@ order, chess-move semantics — are resolved in [SPEC.md](./SPEC.md) /
 1. ✅ **Setup/infra** — monorepo scaffold, TS build, dev reload, lint/format, README/LICENSE
    *(done 2026-07-03: npm workspaces `shared`/`server`/`client`, strict TS, esbuild
    bundles, tsx watch, ESLint 9 + Prettier, vitest, MIT license)*
-2. **Shared model & protocol** — config schema, game-state model, play-API messages,
+2. ✅ **Shared model & protocol** — config schema, game-state model, play-API messages,
    state machines, pure rules module
+   *(done 2026-07-07: `shared/config.default.json` + validated schema with per-key
+   bounds, mutability classes, cross-param checks and string parsing; JSON-serializable
+   game-state model with player-status transitions; WS protocol types +
+   `parseClientMessage`; pure `resolveTick` (phase model), `growGrass`,
+   `applyPlayerExit` with injectable rng; 39 vitest tests)*
 3. **Server engine** — field/entities, placement, movement & random-conflict resolution,
    scoring, grass growth (real-time + chess), round lifecycle (one-sheep-left end), tick loop
 4. **Server lobby/session** — join+color, name edit, ready flow + timeout, bots,

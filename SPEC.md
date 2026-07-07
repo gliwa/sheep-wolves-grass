@@ -183,11 +183,24 @@ config.default.json  →  env vars  →  REST config API (runtime)  →  query p
 | `cfgMaxNofGrass` | int | count | 40 | 0 … interior cells | live |
 | `cfgStartTimeout` | int | seconds | 60 | ≥ 0 | live |
 | `cfgChessVoteThreshold` | int | percent | 100 | 0–100 | next-round |
-| `cfgMaxNofPlayers` | int | count | 10 | 1–26 (one letter each) | live |
+| `cfgMaxNofPlayers` | int | count | 10 | 2–26 (one letter each) | live |
 | `cfgTickMs` | int | ms | 100 | ≥ 0 (0 = uncapped, for optimization) | live |
 | `cfgChessTicksPerGrassGrow` | int | ticks | 5 | ≥ 1 | next-round |
 | `cfgChessTurnTimeout` | int | seconds | 10 | ≥ 0 | live (from next turn) |
 | `cfgAllowClientOverrides` | bool | — | false | — | startup-only |
+
+### Cross-parameter constraints
+Beyond per-key bounds, the shared validator enforces constraints that span
+several params ([DECISIONS.md](./DECISIONS.md) #27):
+
+- `cfgColors.length ≥ cfgMaxNofPlayers` — every possible player gets a color.
+- `cfgInitialNofGrass ≤ cfgMaxNofGrass` — the round can't start above the cap.
+- `cfgInitialNofGrass + 2 × cfgMaxNofPlayers ≤ cfgFieldSizeX × cfgFieldSizeY` —
+  initial grass plus all wolf+sheep pairs must fit the playable interior.
+
+A runtime change violating any of these is **rejected** (last valid config
+kept, same as a per-key bounds failure); a default file violating them is a
+fatal startup error.
 
 ### Future: player-facing game-settings screen (out of scope for now)
 Config tuning is a **developer** concern — regular players have no way to change
@@ -200,7 +213,8 @@ appears; noted here so the config model leaves room for it.
 Notes:
 - `cfgMaxNofPlayers` renames the original spec's typo `cfgMayNofPlayers`
   ([DECISIONS.md](./DECISIONS.md) #20). Capped at 26 because each player needs a
-  distinct letter (a–z).
+  distinct letter (a–z); minimum 2 because a round needs two sheep — a lone human
+  is paired with a bot ([DECISIONS.md](./DECISIONS.md) #26).
 - `cfgTickMs = 0` (or very small) removes tick quantization so the sim runs as fast
   as possible — the mechanism behind the LLM-optimization "disable quantization"
   requirement.

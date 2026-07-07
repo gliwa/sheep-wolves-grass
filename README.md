@@ -43,7 +43,7 @@ npm run dev
 | `npm run typecheck`    | `tsc --noEmit` across all three packages          |
 | `npm run lint`         | ESLint                                            |
 | `npm run format`       | Prettier (code only; docs are hand-wrapped)       |
-| `npm test`             | Vitest (rules tests arrive with WBS item 2)       |
+| `npm test`             | Vitest (shared rules/config/protocol tests)       |
 
 ## License
 

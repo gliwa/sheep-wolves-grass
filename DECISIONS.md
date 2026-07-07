@@ -107,6 +107,22 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     targets only empty cells (a spawn with no empty cell available is skipped),
     and a wolf can deliberately deny grazing points by trampling — an intended
     strategic option.
+26. **Minimum players** *(2026-07-07)*. `cfgMaxNofPlayers` lower bound raised
+    1 → 2. A round needs two sheep to be non-degenerate, but the minimum number
+    of *human* players stays 1: a lone human plays against a bot (auto-added on
+    start-timeout if nobody else joined), so the cap must always leave room for
+    that second, possibly artificial, player.
+27. **Cross-parameter validation** *(2026-07-07)*. Constraints spanning several
+    params — `cfgColors.length ≥ cfgMaxNofPlayers`,
+    `cfgInitialNofGrass ≤ cfgMaxNofGrass`, and
+    `cfgInitialNofGrass + 2 × cfgMaxNofPlayers ≤ interior cells` (grass plus all
+    wolf+sheep pairs must fit the field) — are enforced by the shared validator
+    on every config change, alongside the per-key bounds. A runtime change that
+    would violate one is **rejected** and the last valid config kept (same
+    semantics as a per-key failure); a default file that violates one is a fatal
+    startup error. This also closes the `cfgMaxNofPlayers` (live) vs `cfgColors`
+    (next-round) mutability gap: raising the player cap beyond the palette
+    length is simply rejected.
 
 ---
 

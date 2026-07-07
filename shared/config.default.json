@@ -1,0 +1,27 @@
+{
+  "cfgFieldSizeX": 50,
+  "cfgFieldSizeY": 30,
+  "cfgColors": [
+    "#E69F00",
+    "#56B4E9",
+    "#009E73",
+    "#F0E442",
+    "#0072B2",
+    "#D55E00",
+    "#CC79A7",
+    "#FFFFFF",
+    "#999999",
+    "#33CCCC"
+  ],
+  "cfgSheepKillBonus": 10,
+  "cfgInitialNofGrass": 20,
+  "cfgGrassGrowRate": 20,
+  "cfgMaxNofGrass": 40,
+  "cfgStartTimeout": 60,
+  "cfgChessVoteThreshold": 100,
+  "cfgMaxNofPlayers": 10,
+  "cfgTickMs": 100,
+  "cfgChessTicksPerGrassGrow": 5,
+  "cfgChessTurnTimeout": 10,
+  "cfgAllowClientOverrides": false
+}
