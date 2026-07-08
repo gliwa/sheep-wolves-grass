@@ -48,6 +48,15 @@ npm run dev
 | `npm run format`       | Prettier (code only; docs are hand-wrapped)       |
 | `npm test`             | Vitest (shared rules/config/protocol tests)       |
 
+## Tweaking the game
+The game comes with several configuration parameters which are described in
+![SPEC.md]. Parameters with 'live' Mutability can be altered while the game
+executes, e.g. the bots can be slowed down by passing `cfgBotSpeedThrottle`
+with a value grater than 0:
+```sh
+curl -X PATCH http://localhost:8080/config -d '{"cfgBotSpeedThrottle": 2}'
+```
+
 ## License
 
 [MIT](./LICENSE)
