@@ -21,13 +21,20 @@ npm install
 npm run dev
 ```
 
+If this generates an error message *"npm : File npm.ps1 cannot be loaded because
+running scripts is disabled on this system"*, under Windows PowerShell, the
+PowerShell's script execution policy is blocking npm's PowerShell shim (npm.ps1).
+The standard fix is to allow locally-created scripts for the current user account:
+
+```sh
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Once the server successfully started, the game can be played locally with a browser.
+The URL is **http://localhost:8080/**.
+
 - Client dev server: <http://127.0.0.1:5173> (esbuild, rebuilds on reload)
 - Game server: restarts on source changes (tsx watch); serves nothing yet
-
-> **Windows note:** if the checkout path contains `&` (e.g.
-> `C:\dev\Sheep, Wolves & Grass`), npm's default `cmd.exe` script shell breaks.
-> Either clone to a plain path (recommended) or add a local `.npmrc` with
-> `script-shell=C:\Program Files\Git\bin\bash.exe`.
 
 ## Repository layout
 
