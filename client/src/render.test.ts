@@ -113,7 +113,7 @@ describe('renderApp — play screen', () => {
     round.players[1]!.sheep = null;
     round.players[1]!.exited = true;
     const html = renderApp(activeState({ round }), NOW);
-    expect(html).toContain('[CHESS MODE]');
+    expect(html).toContain('[CHESS MODE — turn 1]');
     expect(html).toContain('(left)');
   });
 });

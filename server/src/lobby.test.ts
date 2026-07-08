@@ -222,6 +222,107 @@ describe('Lobby — chess vote', () => {
   });
 });
 
+describe('Lobby — chess mode (WBS 7)', () => {
+  /** Two humans, both vote chess, both ready → a chess round is running. */
+  function startChessRound(overrides: Partial<GameConfig> = {}) {
+    const setup = makeLobby({ cfgChessTurnTimeout: 10, ...overrides });
+    const p1 = setup.lobby.join()!;
+    const p2 = setup.lobby.join()!;
+    setup.lobby.voteChess(p1.id);
+    setup.lobby.voteChess(p2.id);
+    setup.lobby.ready(p1.id);
+    setup.lobby.ready(p2.id);
+    return { ...setup, p1, p2 };
+  }
+
+  it('a passed vote starts the round in chess mode; without votes it stays real-time', () => {
+    const chess = startChessRound();
+    expect(chess.rec.roundStarts[0]!.chessMode).toBe(true);
+
+    const { lobby, rec } = makeLobby();
+    const p1 = lobby.join()!;
+    const p2 = lobby.join()!;
+    lobby.ready(p1.id);
+    lobby.ready(p2.id);
+    expect(rec.roundStarts[0]!.chessMode).toBe(false);
+  });
+
+  it('turns advance on all inputs, not on wall-clock time; newest command wins', () => {
+    const { lobby, rec, p1, p2 } = startChessRound();
+    vi.advanceTimersByTime(5000); // no TickLoop — nothing may tick on its own
+    expect(rec.ticks).toHaveLength(0);
+
+    lobby.submitMove({ playerId: p1.id, entity: 'sheep', dir: 'down' });
+    lobby.submitMove({ playerId: p1.id, entity: 'wolf', dir: 'down' }); // replaces the sheep move
+    expect(rec.ticks).toHaveLength(0); // still waiting for p2
+
+    lobby.submitMove({ playerId: p2.id, entity: 'sheep', dir: 'up' });
+    expect(rec.ticks).toHaveLength(1); // all inputs in → turn resolved
+    const state = rec.ticks[0]!.state;
+    expect(state.tick).toBe(1);
+    expect(state.players.find((p) => p.id === p1.id)!.wolf).toEqual({ x: 0, y: 1 });
+    expect(state.players.find((p) => p.id === p1.id)!.sheep).toEqual({ x: 1, y: 0 }); // overridden
+    expect(state.players.find((p) => p.id === p2.id)!.sheep).toEqual({ x: 8, y: 8 });
+  });
+
+  it('the per-turn timeout advances with whatever inputs arrived', () => {
+    const { lobby, rec, p1 } = startChessRound();
+    lobby.submitMove({ playerId: p1.id, entity: 'sheep', dir: 'down' });
+    vi.advanceTimersByTime(9_999);
+    expect(rec.ticks).toHaveLength(0);
+    vi.advanceTimersByTime(1); // cfgChessTurnTimeout = 10s
+    expect(rec.ticks).toHaveLength(1);
+    expect(rec.ticks[0]!.state.players.find((p) => p.id === p1.id)!.sheep).toEqual({ x: 1, y: 1 });
+
+    vi.advanceTimersByTime(10_000); // next turn times out with no input at all
+    expect(rec.ticks).toHaveLength(2);
+  });
+
+  it('bots answer promptly and ignore the speed throttle in chess mode', () => {
+    // Threshold 50: the human's single vote carries it despite the bot (#6b).
+    const { lobby, rec } = makeLobby({
+      cfgChessVoteThreshold: 50,
+      cfgChessTurnTimeout: 10,
+      cfgBotSpeedThrottle: 5,
+    });
+    const p1 = lobby.join()!;
+    const bot = lobby.addBot()!;
+    lobby.voteChess(p1.id);
+    lobby.ready(p1.id);
+    expect(rec.roundStarts[0]!.chessMode).toBe(true);
+
+    const botWolfDistance = () => {
+      const onField = lobby.roundState!.players.find((p) => p.id === bot.id)!;
+      return Math.abs(onField.wolf.x - 9) + Math.abs(onField.wolf.y - 9);
+    };
+    // The bot answered at turn start, so each human input resolves a turn
+    // immediately — and the bot moves every single turn despite throttle 5.
+    lobby.submitMove({ playerId: p1.id, entity: 'sheep', dir: 'down' });
+    expect(rec.ticks).toHaveLength(1);
+    expect(botWolfDistance()).toBe(1);
+    lobby.submitMove({ playerId: p1.id, entity: 'sheep', dir: 'down' });
+    expect(rec.ticks).toHaveLength(2);
+    expect(botWolfDistance()).toBe(2);
+  });
+
+  it('an exiting player no longer blocks the all-inputs wait', () => {
+    const { lobby, rec } = makeLobby({ cfgChessTurnTimeout: 10 });
+    const p1 = lobby.join()!;
+    const p2 = lobby.join()!;
+    const p3 = lobby.join()!;
+    for (const p of [p1, p2, p3]) lobby.voteChess(p.id);
+    for (const p of [p1, p2, p3]) lobby.ready(p.id);
+    expect(rec.roundStarts[0]!.chessMode).toBe(true);
+
+    lobby.submitMove({ playerId: p1.id, entity: 'sheep', dir: 'down' });
+    lobby.submitMove({ playerId: p2.id, entity: 'sheep', dir: 'up' });
+    expect(rec.ticks).toHaveLength(0); // waiting for p3
+    lobby.exit(p3.id);
+    expect(rec.ticks).toHaveLength(1); // wait shrank to p1+p2 → turn resolved
+    expect(rec.roundEnds).toHaveLength(0); // two sheep still alive
+  });
+});
+
 describe('Lobby — round lifecycle', () => {
   it('runs a full round: kill ends it, stats accumulate, players return to waiting', () => {
     const { lobby, rec } = makeLobby();

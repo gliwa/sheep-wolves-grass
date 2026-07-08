@@ -128,7 +128,7 @@ function renderPlayScreen(state: AppState): string {
 
   const border = `+${'-'.repeat(round.fieldSizeX)}+`;
   const lines: string[] = [];
-  if (round.chessMode) lines.push('[CHESS MODE]', '');
+  if (round.chessMode) lines.push(`[CHESS MODE — turn ${round.tick + 1}]`, '');
   lines.push(border);
   for (const row of grid) lines.push(`|${row.join('')}|`);
   lines.push(border, '');

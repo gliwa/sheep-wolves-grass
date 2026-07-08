@@ -70,8 +70,18 @@ orientation and play-screen keys were resolved 2026-07-08 →
    `dist` (esbuild watch) served by the game server. 29 new tests (128 total);
    verified end-to-end: built bundle served + live WS round against the prod
    server. Remaining: manual browser playtest.)*
-7. **Chess mode** — voting UI + threshold, await-all-inputs turn logic + timeout,
+7. ✅ **Chess mode** — voting UI + threshold, await-all-inputs turn logic + timeout,
    per-tick grass growth, mode selection
+   *(done 2026-07-08: mode selection — the ballot tally (WBS 4) now decides the
+   round's mode at start; turn driver in the lobby replaces the TickLoop — a
+   turn is one engine tick, resolved when every eligible player (alive, not
+   exited) submitted a move (any move counts, wall = pass, newest wins) or
+   `cfgChessTurnTimeout` fires; bots answer at turn start (speed throttle
+   inapplicable in chess, SPEC note); exits shrink the wait; bots-only tails
+   advance iteratively; per-turn grass cadence was already in the engine
+   (WBS 3), voting UI in the client (WBS 6); client shows `[CHESS MODE —
+   turn N]`; 5 new tests (135 total) + live WS chess round verified against
+   the prod build. Future polish: show who has already submitted this turn.)*
 8. **Testing** — unit rules tests, headless play-API clients, integration full-round, latency smoke
 9. **Deploy/ops** — prod build, systemd + nginx (`wss`), config persistence, GitHub polish
 10. **LLM optimization** — OUT OF SCOPE for now (final phase): LLM players via play API,

@@ -2,6 +2,9 @@
 // join/leave with letter+color assignment, name edit, the ready flow with
 // the auto-start countdown, bots, chess voting, and the round lifecycle
 // around the engine (start, tick loop with bot input, stats, round end).
+// A chess-vote that passes starts the round turn-based instead (WBS 7): a
+// turn advances when every eligible player submitted a move or the per-turn
+// timeout fires (SPEC.md → Chess mode, DECISIONS.md #7/#24).
 // Networking (WBS 5) maps connections onto this API and broadcasts the
 // emitted events; there is no reconnection — a disconnect is an exit and a
 // reload joins as a brand-new player (DECISIONS.md #12–13).
@@ -16,6 +19,7 @@ import type {
   RoundEndScore,
   RoundState,
   TickEvent,
+  TickResult,
 } from '@swg/shared';
 import { MAX_NAME_LENGTH, letterForIndex } from '@swg/shared';
 
@@ -59,6 +63,9 @@ export class Lobby {
    * fractions work — it's linear in the ratio, unlike an every-Nth-tick rule.
    */
   private readonly botMoveCredit = new Map<PlayerId, number>();
+  /** Chess mode: who has submitted this turn's move, and the turn timeout. */
+  private readonly chessSubmitted = new Set<PlayerId>();
+  private chessTimer: NodeJS.Timeout | null = null;
 
   constructor(options: LobbyOptions) {
     this.getConfig = options.getConfig;
@@ -155,6 +162,13 @@ export class Lobby {
         this.endRound();
         return;
       }
+      if (engine.state.chessMode) {
+        // The leaver no longer counts toward the all-inputs wait (#24).
+        this.chessSubmitted.delete(id);
+        this.emitLobby();
+        if (this.chessTurnComplete(engine)) this.advanceChessTurn();
+        return;
+      }
     } else {
       this.players = this.players.filter((p) => p.id !== id);
       if (!this.humansRemain()) {
@@ -165,15 +179,27 @@ export class Lobby {
     this.emitLobby();
   }
 
-  /** Forwarded to the engine while a round runs; ignored otherwise. */
+  /**
+   * Forwarded to the engine while a round runs; ignored otherwise. In chess
+   * mode this also counts as the player's turn input — any move, including
+   * one against a wall (a legal pass, #24) — and the turn advances once
+   * every eligible player has submitted.
+   */
   submitMove(command: MoveCommand): void {
-    this.engine?.submitMove(command);
+    const engine = this.engine;
+    if (engine === null) return;
+    engine.submitMove(command);
+    if (engine.state.chessMode && this.eligibleChessIds(engine).includes(command.playerId)) {
+      this.chessSubmitted.add(command.playerId);
+      if (this.chessTurnComplete(engine)) this.advanceChessTurn();
+    }
   }
 
   /** Stop timers (tests, shutdown); the lobby is unusable afterwards. */
   dispose(): void {
     this.loop?.stop();
     this.loop = null;
+    this.cancelChessTimer();
     this.engine = null;
     this.cancelCountdown();
   }
@@ -267,14 +293,13 @@ export class Lobby {
   private startRound(): void {
     this.beforeRoundStart?.(); // buffered next-round config lands first
     this.cancelCountdown();
-    // The chess ballot is tallied for the snapshot and consumed here; actual
-    // chess turn logic is WBS 7 ("mode selection") — until then every round
-    // runs real-time.
+    // Tally the ballots to select the mode, then consume them (#32).
+    const chessMode = this.chessVotePassed();
     for (const player of this.players) player.chessVote = false;
     const engine = new RoundEngine({
       getConfig: this.getConfig,
       players: this.players.map((p) => ({ id: p.id, letter: p.letter })),
-      chessMode: false,
+      chessMode,
       rng: this.rng,
     });
     this.engine = engine;
@@ -282,11 +307,17 @@ export class Lobby {
     for (const player of this.players) player.status = 'playing';
     this.emitLobby();
     this.events.onRoundStart(engine.state);
-    this.loop = new TickLoop({
-      getTickMs: () => this.getConfig().cfgTickMs,
-      tick: (elapsedMs) => this.runTick(elapsedMs),
-    });
-    this.loop.start();
+    if (chessMode) {
+      // Turn-based: no wall-clock loop, the inputs (or the timeout) drive it.
+      this.beginChessTurnInputs(engine);
+      if (this.chessTurnComplete(engine)) this.advanceChessTurn();
+    } else {
+      this.loop = new TickLoop({
+        getTickMs: () => this.getConfig().cfgTickMs,
+        tick: (elapsedMs) => this.runTick(elapsedMs),
+      });
+      this.loop.start();
+    }
   }
 
   private runTick(elapsedMs: number): boolean {
@@ -304,7 +335,11 @@ export class Lobby {
       const command = computeBotCommand(engine.state, bot.id, this.rng);
       if (command !== null) engine.submitMove(command);
     }
-    const result = engine.advanceTick(elapsedMs);
+    return !this.applyTickResult(engine.advanceTick(elapsedMs));
+  }
+
+  /** Shared tick aftermath (real-time and chess): statuses, broadcast, end check. */
+  private applyTickResult(result: TickResult): boolean {
     let statusChanged = false;
     for (const event of result.events) {
       if (event.type !== 'sheep-killed') continue;
@@ -318,9 +353,66 @@ export class Lobby {
     this.events.onTick(result.state, result.events);
     if (result.roundEnded) {
       this.endRound();
-      return false;
+      return true;
     }
-    return true;
+    return false;
+  }
+
+  // ---------------------------------------------------------------------
+  // Chess mode (WBS 7): a turn is one engine tick, driven by inputs.
+
+  /** Players who still owe a turn input: alive and present (#24). */
+  private eligibleChessIds(engine: RoundEngine): PlayerId[] {
+    return engine.state.players.filter((p) => p.sheep !== null && !p.exited).map((p) => p.id);
+  }
+
+  private chessTurnComplete(engine: RoundEngine): boolean {
+    return this.eligibleChessIds(engine).every((id) => this.chessSubmitted.has(id));
+  }
+
+  /**
+   * Open a new turn: bots answer promptly (SPEC.md → Chess mode — the speed
+   * throttle is a real-time concept and does not apply here, a throttled bot
+   * would only stall every turn into the timeout), then the per-turn timer
+   * is armed with the current cfgChessTurnTimeout (live from next turn).
+   */
+  private beginChessTurnInputs(engine: RoundEngine): void {
+    this.chessSubmitted.clear();
+    this.cancelChessTimer();
+    const eligible = new Set(this.eligibleChessIds(engine));
+    for (const bot of this.players) {
+      if (!bot.isBot || !eligible.has(bot.id)) continue;
+      const command = computeBotCommand(engine.state, bot.id, this.rng);
+      if (command !== null) engine.submitMove(command);
+      this.chessSubmitted.add(bot.id); // a held bot still answered (pass)
+    }
+    this.chessTimer = setTimeout(
+      () => this.advanceChessTurn(),
+      this.getConfig().cfgChessTurnTimeout * 1000,
+    );
+  }
+
+  /**
+   * Resolve the current turn and open the next; iterates while turns
+   * complete immediately (a bots-only tail must not recurse), stopping when
+   * a human input is awaited or the round ends.
+   */
+  private advanceChessTurn(): void {
+    const engine = this.engine;
+    if (engine === null || !engine.state.chessMode) return;
+    for (;;) {
+      this.cancelChessTimer();
+      if (this.applyTickResult(engine.advanceTick(0))) return; // round ended
+      this.beginChessTurnInputs(engine);
+      if (!this.chessTurnComplete(engine)) return;
+    }
+  }
+
+  private cancelChessTimer(): void {
+    if (this.chessTimer !== null) {
+      clearTimeout(this.chessTimer);
+      this.chessTimer = null;
+    }
   }
 
   private endRound(): void {
@@ -328,6 +420,8 @@ export class Lobby {
     if (engine === null) return;
     this.loop?.stop();
     this.loop = null;
+    this.cancelChessTimer();
+    this.chessSubmitted.clear();
     this.engine = null;
     const result = computeRoundResult(engine.state);
     const scores: RoundEndScore[] = result.scores.map((s) => ({
@@ -355,6 +449,8 @@ export class Lobby {
   private reset(): void {
     this.loop?.stop();
     this.loop = null;
+    this.cancelChessTimer();
+    this.chessSubmitted.clear();
     this.engine = null;
     this.players = [];
     this.cancelCountdown();

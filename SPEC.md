@@ -226,7 +226,9 @@ Notes:
   the ratio of idle ticks to moving ticks, i.e. `(total ticks / moving ticks) − 1`,
   so a bot issues its one move every `1 + throttle` ticks on average — 0 = every
   tick (full speed), 1 = half speed, 3 = quarter speed. Fractions are allowed;
-  the scale is linear in the ratio (DECISIONS #34).
+  the scale is linear in the ratio (DECISIONS #34). The throttle is a
+  real-time concept and does **not** apply in chess mode: bots answer every
+  turn promptly (a throttled bot would only stall each turn into the timeout).
 - `cfgColors` must supply at least `cfgMaxNofPlayers` entries; see the palette table
   in [DECISIONS.md](./DECISIONS.md) #21.
 
