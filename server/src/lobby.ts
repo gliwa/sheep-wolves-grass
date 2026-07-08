@@ -34,12 +34,18 @@ export interface LobbyOptions {
   getConfig: () => GameConfig;
   events: LobbyEvents;
   rng?: Rng;
+  /**
+   * Invoked right before a round starts — the config store applies buffered
+   * next-round keys here, before the engine snapshots them (WBS 5).
+   */
+  beforeRoundStart?: () => void;
 }
 
 export class Lobby {
   private readonly getConfig: () => GameConfig;
   private readonly events: LobbyEvents;
   private readonly rng: Rng;
+  private readonly beforeRoundStart: (() => void) | undefined;
   private players: LobbyPlayer[] = [];
   private idCounter = 0;
   private engine: RoundEngine | null = null;
@@ -51,6 +57,7 @@ export class Lobby {
     this.getConfig = options.getConfig;
     this.events = options.events;
     this.rng = options.rng ?? Math.random;
+    this.beforeRoundStart = options.beforeRoundStart;
   }
 
   get roundRunning(): boolean {
@@ -251,6 +258,7 @@ export class Lobby {
   }
 
   private startRound(): void {
+    this.beforeRoundStart?.(); // buffered next-round config lands first
     this.cancelCountdown();
     // The chess ballot is tallied for the snapshot and consumed here; actual
     // chess turn logic is WBS 7 ("mode selection") — until then every round

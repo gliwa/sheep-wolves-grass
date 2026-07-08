@@ -157,6 +157,15 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     The tally (voted share vs `cfgChessVoteThreshold`, non-voters and bots
     against) is shown continuously on the start screen and **consumed at round
     start**: all ballots reset to 'against', so each round is voted on afresh.
+33. **Startup vs runtime config failures** *(2026-07-08)*. Invalid `cfg*` env
+    vars are **fatal at boot** (like a bad default file — fail where the
+    operator sees it), while runtime changes (REST PATCH, query params) are
+    rejected per key with the last valid config kept. A PATCH reports
+    `{applied, pending, rejected}`; a cross-param violation rejects the whole
+    accepted set, checked both against the immediate config (live keys) and
+    the next-round view (live + buffered keys). Process-level settings that
+    are not game parameters — `PORT` (default 8080) and `STATIC_DIR` — are
+    plain env vars, not `cfg*` keys.
 
 ---
 

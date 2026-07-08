@@ -47,7 +47,16 @@ orientation and play-screen keys were resolved 2026-07-08 →
    sheep flees/grazes); decisions #29–#32; 21 new vitest tests, 84 total.
    Reconnection = none by design (#12–13); chess vote is tallied but rounds run
    real-time until WBS 7 wires mode selection.)*
-5. **Server networking** — WebSocket play API, config REST API, static serving
+5. ✅ **Server networking** — WebSocket play API, config REST API, static serving
+   *(done 2026-07-08: `config-store.ts` — startup file→env resolution (bad env
+   fatal, decision #33), runtime PATCH per mutability class with live/pending
+   split and dual cross-param checks, applied at the round boundary via the
+   lobby's `beforeRoundStart` hook; `http.ts` — GET/PATCH `/config` + static
+   client hosting with traversal protection on `node:http`; `server.ts` —
+   `ws` play API on `/play` (welcome/lobby/roundStart/tick/roundEnd/
+   configChanged, disconnect = exit, dev-only query-param overrides);
+   entry point serves everything on one PORT; 15 new tests (99 total) incl.
+   two headless WS clients completing a full round)*
 6. **Client** — screen-mode framework (start/play), ASCII field + scoreboard render,
    start-screen table + name edit, keyboard input, WS client, latency handling
 7. **Chess mode** — voting UI + threshold, await-all-inputs turn logic + timeout,
