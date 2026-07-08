@@ -9,11 +9,10 @@ rule gaps from that review — sheep/wolf co-location, round-end check, tick pha
 order, chess-move semantics — are resolved in [SPEC.md](./SPEC.md) /
 [DECISIONS.md](./DECISIONS.md). The former questions on the `cfgMaxNofPlayers`
 lower bound and on cross-parameter validation were resolved 2026-07-07 →
-[DECISIONS.md](./DECISIONS.md) #26/#27. The former question on placement
-orientation was resolved 2026-07-08 → [DECISIONS.md](./DECISIONS.md) #28.)
+[DECISIONS.md](./DECISIONS.md) #26/#27. The former questions on placement
+orientation and play-screen keys were resolved 2026-07-08 →
+[DECISIONS.md](./DECISIONS.md) #28/#31.)
 
-2. **Play-screen keys** — only movement keys are specified; is `E` (exit) available
-   mid-round? DECISIONS #11 implies yes.
 3. **Round termination** — "one sheep left" guarantees the end state is *reachable*,
    not that rounds end: two cautious players can graze forever. Accept by design
    (note it in SPEC) or add a round timeout?
@@ -37,8 +36,17 @@ orientation was resolved 2026-07-08 → [DECISIONS.md](./DECISIONS.md) #28.)
    real-time grass accumulator + chess tick cadence, exit, round result);
    `TickLoop` (live `cfgTickMs`, drift compensation, `0` = free-run via
    setImmediate); 24 new vitest tests, 63 total)*
-4. **Server lobby/session** — join+color, name edit, ready flow + timeout, bots,
+4. ✅ **Server lobby/session** — join+color, name edit, ready flow + timeout, bots,
    round-end stats, game end, reconnection/identity
+   *(done 2026-07-08: `server/src/lobby.ts` — join/leave with lowest-free
+   letter+color+name reuse, name edit while waiting, ready flow + countdown
+   (starts on first human ready, resets on human join, elapse forces ready +
+   auto-bot), chess ballots (toggle, consumed at round start), round lifecycle
+   around the engine with stats accumulation and left-player purge, lobby reset
+   when the last human leaves; `server/src/bots.ts` heuristic bot (wolf hunts,
+   sheep flees/grazes); decisions #29–#32; 21 new vitest tests, 84 total.
+   Reconnection = none by design (#12–13); chess vote is tallied but rounds run
+   real-time until WBS 7 wires mode selection.)*
 5. **Server networking** — WebSocket play API, config REST API, static serving
 6. **Client** — screen-mode framework (start/play), ASCII field + scoreboard render,
    start-screen table + name edit, keyboard input, WS client, latency handling

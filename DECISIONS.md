@@ -129,6 +129,34 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     and total: field width ≥ 10 guarantees one horizontal neighbor is inside,
     and the placement algorithm keeps both pair cells clear of grass and other
     pairs, so no further fallback is needed.
+    *(Amended 2026-07-08: "maximize the minimum pairwise distance" (#17) is a
+    heuristic goal, not a strict optimum — corners are prescribed for 2/4
+    players, other counts spread greedily farthest-point; anything clearly
+    better than random placement suffices.)*
+29. **Countdown & round-start gating** *(2026-07-08)*. The `cfgStartTimeout`
+    countdown starts when the first **human** readies, and only **human** joins
+    reset it — bots are 'ready' the instant they are added and need no ready-up
+    time, so adding one neither starts nor resets the window. A round starts
+    when every non-left player is 'ready', there are ≥ 2 players, and at least
+    one is human; a lone ready human waits out the countdown, whose elapse
+    forces stragglers to 'ready' and auto-adds the bot (#26).
+30. **Lobby lifecycle & leavers** *(2026-07-08)*. A player who exits or
+    disconnects mid-round stays listed as 'left' until the round ends (their
+    lonely wolf still needs the letter and color on screen) and is purged at
+    the round boundary; leavers forfeit the round result. Letters, colors and
+    bot numbers are reused lowest-free. When the last human leaves, bots are
+    removed, a running round is aborted without a result, and the lobby resets
+    — bots never play alone. Stats live exactly as long as their player (#15);
+    an empty lobby is a fresh game.
+31. **Play-screen keys** *(2026-07-08, resolves TODO open question 2)*. During
+    a round the only inputs for a playing player are movement and `E` (exit,
+    per #11). `P`, `B`, `C` and name editing are start-screen actions — they
+    remain available to players *on* the start screen (e.g. mid-round joiners)
+    while a round runs elsewhere.
+32. **Chess ballot handling** *(2026-07-08)*. `C` toggles the player's vote.
+    The tally (voted share vs `cfgChessVoteThreshold`, non-voters and bots
+    against) is shown continuously on the start screen and **consumed at round
+    start**: all ballots reset to 'against', so each round is voted on afresh.
 
 ---
 
