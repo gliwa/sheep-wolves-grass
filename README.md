@@ -1,8 +1,11 @@
 # Sheep, Wolves & Grass
 
 A browser-based, multiplayer (1–10 players), real-time ASCII game. Your sheep
-(`a`) grazes for points, your wolf (`A`) hunts the other players' sheep — and
-tramples their grass. Server-authoritative game loop over WebSockets, bots, an
+(`a`) grazes for points, your wolf (`A`) hunts the other players' sheep.
+
+![Screen shot: three Players](play-screen.png)
+
+Server-authoritative game loop over WebSockets, bots, an
 optional turn-based "chess mode", and a tunable configuration API.
 
 **Status: in development.** The design is complete; implementation is underway.
