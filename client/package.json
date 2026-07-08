@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "esbuild src/main.ts --bundle --format=esm --sourcemap --outdir=dist --servedir=. --serve=127.0.0.1:5173",
-    "build": "esbuild src/main.ts --bundle --format=esm --minify --sourcemap --outdir=dist"
+    "copy:html": "node -e \"const f=require('fs');f.mkdirSync('dist',{recursive:true});f.copyFileSync('index.html','dist/index.html')\"",
+    "dev": "npm run copy:html && esbuild src/main.ts --bundle --format=esm --sourcemap --outdir=dist --watch",
+    "build": "npm run copy:html && esbuild src/main.ts --bundle --format=esm --minify --sourcemap --outdir=dist"
   },
   "dependencies": {
     "@swg/shared": "*"

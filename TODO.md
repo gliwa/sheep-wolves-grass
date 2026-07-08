@@ -57,8 +57,19 @@ orientation and play-screen keys were resolved 2026-07-08 →
    configChanged, disconnect = exit, dev-only query-param overrides);
    entry point serves everything on one PORT; 15 new tests (99 total) incl.
    two headless WS clients completing a full round)*
-6. **Client** — screen-mode framework (start/play), ASCII field + scoreboard render,
+6. ✅ **Client** — screen-mode framework (start/play), ASCII field + scoreboard render,
    start-screen table + name edit, keyboard input, WS client, latency handling
+   *(done 2026-07-08: vanilla TS into the `<pre>` — pure `state.ts` (server-message
+   store, screen derivation: participants get the play screen, mid-round joiners
+   spectate the start screen per #31), pure `render.ts` (start-screen table with
+   colors/countdown/chess/last-round banners + name editor; bordered field with
+   per-cell colors and scoreboard), pure `input.ts` (start keys, name editor,
+   E to leave), thin `main.ts` (WS client with `?cfg*` passthrough, held-key
+   repeater ~60ms for continuous movement, countdown re-render). Latency v1 =
+   server-authoritative render, no prediction. Client dev flow now builds into
+   `dist` (esbuild watch) served by the game server. 29 new tests (128 total);
+   verified end-to-end: built bundle served + live WS round against the prod
+   server. Remaining: manual browser playtest.)*
 7. **Chess mode** — voting UI + threshold, await-all-inputs turn logic + timeout,
    per-tick grass growth, mode selection
 8. **Testing** — unit rules tests, headless play-API clients, integration full-round, latency smoke
