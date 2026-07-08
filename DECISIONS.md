@@ -123,6 +123,12 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     startup error. This also closes the `cfgMaxNofPlayers` (live) vs `cfgColors`
     (next-round) mutability gap: raising the player cap beyond the palette
     length is simply rejected.
+28. **Placement orientation fallback** *(2026-07-08)*. Pairs are placed as
+    wolf with sheep to its **right**; if that cell is a wall (right-edge
+    placements), the sheep **mirrors to the wolf's left** instead. Deterministic
+    and total: field width ≥ 10 guarantees one horizontal neighbor is inside,
+    and the placement algorithm keeps both pair cells clear of grass and other
+    pairs, so no further fallback is needed.
 
 ---
 

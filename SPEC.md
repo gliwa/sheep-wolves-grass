@@ -86,7 +86,8 @@ questions.
 
 ### Round lifecycle
 - **Start:** `cfgInitialNofGrass` grass placed at random; each player's wolf+sheep
-  placed as an adjacent pair (wolf, sheep to its right), pairs positioned to
+  placed as an adjacent pair — wolf, sheep to its right; if that cell is a wall,
+  the sheep mirrors to the wolf's left instead (DECISIONS #28) — pairs positioned to
   **maximize the minimum pairwise distance** between pairs (corners for 2/4 players,
   evenly distributed otherwise). Initial grass and pairs must not overlap.
 - **End:** the round ends once **at most one** sheep remains alive (≤ 1 — two

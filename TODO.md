@@ -9,10 +9,9 @@ rule gaps from that review — sheep/wolf co-location, round-end check, tick pha
 order, chess-move semantics — are resolved in [SPEC.md](./SPEC.md) /
 [DECISIONS.md](./DECISIONS.md). The former questions on the `cfgMaxNofPlayers`
 lower bound and on cross-parameter validation were resolved 2026-07-07 →
-[DECISIONS.md](./DECISIONS.md) #26/#27.)
+[DECISIONS.md](./DECISIONS.md) #26/#27. The former question on placement
+orientation was resolved 2026-07-08 → [DECISIONS.md](./DECISIONS.md) #28.)
 
-1. **Placement orientation** — "wolf, sheep to its right" puts the sheep inside the
-   wall when a pair sits at a right-edge corner; define an orientation fallback.
 2. **Play-screen keys** — only movement keys are specified; is `E` (exit) available
    mid-round? DECISIONS #11 implies yes.
 3. **Round termination** — "one sheep left" guarantees the end state is *reachable*,
@@ -30,8 +29,14 @@ lower bound and on cross-parameter validation were resolved 2026-07-07 →
    game-state model with player-status transitions; WS protocol types +
    `parseClientMessage`; pure `resolveTick` (phase model), `growGrass`,
    `applyPlayerExit` with injectable rng; 39 vitest tests)*
-3. **Server engine** — field/entities, placement, movement & random-conflict resolution,
+3. ✅ **Server engine** — field/entities, placement, movement & random-conflict resolution,
    scoring, grass growth (real-time + chess), round lifecycle (one-sheep-left end), tick loop
+   *(done 2026-07-08: `server/src/engine/` — placement (corners for 2/4, greedy
+   farthest-point otherwise, #28 mirror fallback, random seating, initial grass);
+   `RoundEngine` (command buffer, next-round config snapshot vs live reads,
+   real-time grass accumulator + chess tick cadence, exit, round result);
+   `TickLoop` (live `cfgTickMs`, drift compensation, `0` = free-run via
+   setImmediate); 24 new vitest tests, 63 total)*
 4. **Server lobby/session** — join+color, name edit, ready flow + timeout, bots,
    round-end stats, game end, reconnection/identity
 5. **Server networking** — WebSocket play API, config REST API, static serving
