@@ -39,6 +39,7 @@ function makeLobby(overrides: Partial<GameConfig> = {}): {
     cfgSheepKillBonus: 10,
     cfgStartTimeout: 60,
     cfgTickMs: 100,
+    cfgBotSpeedThrottle: 0, // full-speed bots unless a test throttles them
     ...overrides,
   };
   const rec: Recorded = { lobbies: [], roundStarts: [], ticks: [], roundEnds: [] };
@@ -153,6 +154,21 @@ describe('Lobby — ready flow & countdown', () => {
     const bot = players.find((p) => p.isBot)!;
     const botOnField = lobby.roundState!.players.find((p) => p.id === bot.id)!;
     expect(botOnField.wolf).not.toEqual({ x: 9, y: 9 });
+  });
+
+  it('cfgBotSpeedThrottle 1 halves the bot: one move per two ticks (#34)', () => {
+    const { lobby } = makeLobby({ cfgBotSpeedThrottle: 1 });
+    const p1 = lobby.join()!;
+    const bot = lobby.addBot()!;
+    lobby.ready(p1.id); // round starts (bot is ready)
+    vi.advanceTimersByTime(400); // 4 ticks → credit 0.5/1/0.5/1 → exactly 2 moves
+    const botOnField = lobby.roundState!.players.find((p) => p.id === bot.id)!;
+    const distanceMoved =
+      Math.abs(botOnField.wolf.x - 9) +
+      Math.abs(botOnField.wolf.y - 9) +
+      Math.abs(botOnField.sheep!.x - 8) +
+      Math.abs(botOnField.sheep!.y - 9);
+    expect(distanceMoved).toBe(2);
   });
 
   it('a join resets the countdown; the elapse forces everyone ready (DECISIONS #9)', () => {

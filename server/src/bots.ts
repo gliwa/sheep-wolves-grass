@@ -1,8 +1,10 @@
-// Bot players (WBS 4): a deliberately light heuristic — the wolf hunts the
-// nearest foreign sheep, the sheep flees a nearby wolf and grazes otherwise.
-// Bots issue the same MoveCommands as humans (≤1 per entity per tick) and go
-// through the identical phase-b validation; ties between equally good
-// directions break via the injected rng.
+// Bot players (WBS 4): a deliberately light heuristic. Like every player, a
+// bot issues at most ONE move per tick — sheep or wolf (DECISIONS.md #34) —
+// so it has to split its attention: a threatened sheep flees first,
+// otherwise the bot alternates between hunting with the wolf and grazing
+// with the sheep. Commands go through the identical phase-b validation as
+// human input; ties between equally good directions break via the injected
+// rng. How often a bot acts at all is the lobby's job (cfgBotSpeedThrottle).
 
 import type { Direction, MoveCommand, PlayerId, Rng, RoundState, Vec2 } from '@swg/shared';
 import { DIRECTION_DELTAS, inBounds } from '@swg/shared';
@@ -59,13 +61,19 @@ function bestStep(
 }
 
 /**
- * The bot's commands for one tick: up to one wolf move (hunting) and one
- * sheep move (fleeing or grazing). A knocked-out or exited bot has only an
- * uncontrollable lonely wolf left, so it issues nothing.
+ * The bot's single command for this tick, or null to hold. Priority: flee a
+ * close wolf; otherwise alternate hunt (even ticks) and graze (odd ticks),
+ * falling back to the other when the preferred entity has no useful move.
+ * A knocked-out or exited bot has only an uncontrollable lonely wolf left,
+ * so it issues nothing.
  */
-export function computeBotCommands(state: RoundState, botId: PlayerId, rng: Rng): MoveCommand[] {
+export function computeBotCommand(
+  state: RoundState,
+  botId: PlayerId,
+  rng: Rng,
+): MoveCommand | null {
   const bot = state.players.find((p) => p.id === botId);
-  if (bot === undefined || bot.exited || bot.sheep === null) return [];
+  if (bot === undefined || bot.exited || bot.sheep === null) return null;
   const botSheep = bot.sheep;
 
   const foreignSheep: Vec2[] = [];
@@ -80,45 +88,49 @@ export function computeBotCommands(state: RoundState, botId: PlayerId, rng: Rng)
     if (player.sheep !== null) foreignSheep.push(player.sheep);
   }
 
-  const commands: MoveCommand[] = [];
+  // Sheep steps: never onto any wolf (foreign is suicide, own is invalid).
+  const sheepAllowed = (target: Vec2): boolean =>
+    inBounds(state, target) &&
+    !anySheep.some((s) => samePos(s, target)) &&
+    !anyWolves.some((w) => samePos(w, target));
+
+  // Flee first: take the step that maximizes the distance to the closest
+  // wolf, as long as it doesn't get closer (a sideways dodge counts).
+  const threat = nearest(botSheep, foreignWolves);
+  if (threat !== null && manhattan(botSheep, threat) <= FLEE_DISTANCE) {
+    const step = bestStep(botSheep, sheepAllowed, (t) => manhattan(t, threat), rng);
+    if (step !== null && step.score >= manhattan(botSheep, threat)) {
+      return { playerId: botId, entity: 'sheep', dir: step.dir };
+    }
+    return null; // cornered — hold rather than step toward the wolf
+  }
 
   // Wolf: close in on the nearest foreign sheep, but only with a strictly
-  // improving step — otherwise hold. Stepping onto the prey is the kill and
-  // is allowed; walls, wolves and the own sheep block (as in phase b).
-  const prey = nearest(bot.wolf, foreignSheep);
-  if (prey !== null) {
+  // improving step. Stepping onto the prey is the kill and is allowed;
+  // walls, wolves and the own sheep block (as in phase b).
+  const hunt = (): MoveCommand | null => {
+    const prey = nearest(bot.wolf, foreignSheep);
+    if (prey === null) return null;
     const wolfAllowed = (target: Vec2): boolean =>
       inBounds(state, target) &&
       !anyWolves.some((w) => samePos(w, target)) &&
       !samePos(botSheep, target);
     const step = bestStep(bot.wolf, wolfAllowed, (t) => -manhattan(t, prey), rng);
     if (step !== null && -step.score < manhattan(bot.wolf, prey)) {
-      commands.push({ playerId: botId, entity: 'wolf', dir: step.dir });
+      return { playerId: botId, entity: 'wolf', dir: step.dir };
     }
-  }
+    return null;
+  };
 
-  // Sheep: never step onto any wolf (foreign is suicide, own is invalid).
-  const sheepAllowed = (target: Vec2): boolean =>
-    inBounds(state, target) &&
-    !anySheep.some((s) => samePos(s, target)) &&
-    !anyWolves.some((w) => samePos(w, target));
-  const threat = nearest(botSheep, foreignWolves);
-  if (threat !== null && manhattan(botSheep, threat) <= FLEE_DISTANCE) {
-    // Flee: take the step that maximizes the distance to the threat, as long
-    // as it doesn't get closer (a sideways dodge is fine when cornered).
-    const step = bestStep(botSheep, sheepAllowed, (t) => manhattan(t, threat), rng);
-    if (step !== null && step.score >= manhattan(botSheep, threat)) {
-      commands.push({ playerId: botId, entity: 'sheep', dir: step.dir });
-    }
-  } else {
+  const graze = (): MoveCommand | null => {
     const grass = nearest(botSheep, state.grass);
-    if (grass !== null) {
-      const step = bestStep(botSheep, sheepAllowed, (t) => -manhattan(t, grass), rng);
-      if (step !== null && -step.score < manhattan(botSheep, grass)) {
-        commands.push({ playerId: botId, entity: 'sheep', dir: step.dir });
-      }
+    if (grass === null) return null;
+    const step = bestStep(botSheep, sheepAllowed, (t) => -manhattan(t, grass), rng);
+    if (step !== null && -step.score < manhattan(botSheep, grass)) {
+      return { playerId: botId, entity: 'sheep', dir: step.dir };
     }
-  }
+    return null;
+  };
 
-  return commands;
+  return state.tick % 2 === 0 ? (hunt() ?? graze()) : (graze() ?? hunt());
 }

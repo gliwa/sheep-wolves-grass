@@ -42,11 +42,13 @@ questions.
   anything is rendered. Rendering therefore needs no priority rules at all.
 
 ### Movement & tick resolution
-- Sheep moves with cursor keys; wolf with Shift+cursor. A user moves only one at a time.
-- **At most one move command per entity per tick.** Holding a key produces
+- Sheep moves with cursor keys; wolf with Shift+cursor.
+- **At most one move command per player per tick** — a player moves either
+  their sheep **or** their wolf, never both; the newest command wins
+  (DECISIONS #34; identical to a chess-mode turn). Holding a key produces
   continuous movement (client repeats the command; server applies ≤1 per tick).
 - **Each tick runs in fixed phases** (in chess mode a turn is one tick):
-  - **(a) Collect input** (≤1 command per entity).
+  - **(a) Collect input** (≤1 command per player — sheep or wolf, newest wins).
   - **(b) Validate:** a move is rejected (no-op) if its target — positions as of
     tick start — is a wall, one of the player's **own** entities, or a **same-type**
     entity (sheep→any sheep, wolf→any wolf). The only permitted collisions are
@@ -186,6 +188,7 @@ config.default.json  →  env vars  →  REST config API (runtime)  →  query p
 | `cfgChessVoteThreshold` | int | percent | 100 | 0–100 | next-round |
 | `cfgMaxNofPlayers` | int | count | 10 | 2–26 (one letter each) | live |
 | `cfgTickMs` | int | ms | 100 | ≥ 0 (0 = uncapped, for optimization) | live |
+| `cfgBotSpeedThrottle` | number | idle-to-move tick ratio | 1 | ≥ 0 | live |
 | `cfgChessTicksPerGrassGrow` | int | ticks | 5 | ≥ 1 | next-round |
 | `cfgChessTurnTimeout` | int | seconds | 10 | ≥ 0 | live (from next turn) |
 | `cfgAllowClientOverrides` | bool | — | false | — | startup-only |
@@ -219,6 +222,11 @@ Notes:
 - `cfgTickMs = 0` (or very small) removes tick quantization so the sim runs as fast
   as possible — the mechanism behind the LLM-optimization "disable quantization"
   requirement.
+- `cfgBotSpeedThrottle` throttles how often bots act (humans never are): it is
+  the ratio of idle ticks to moving ticks, i.e. `(total ticks / moving ticks) − 1`,
+  so a bot issues its one move every `1 + throttle` ticks on average — 0 = every
+  tick (full speed), 1 = half speed, 3 = quarter speed. Fractions are allowed;
+  the scale is linear in the ratio (DECISIONS #34).
 - `cfgColors` must supply at least `cfgMaxNofPlayers` entries; see the palette table
   in [DECISIONS.md](./DECISIONS.md) #21.
 

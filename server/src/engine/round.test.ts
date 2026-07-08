@@ -82,13 +82,13 @@ describe('RoundEngine — command buffering (phase a)', () => {
     expect(get(engine.state, 'a').sheep).toEqual({ x: 1, y: 1 }); // buffer was cleared
   });
 
-  it('buffers one command per entity, so sheep and wolf can move in one tick', () => {
+  it('keeps one command per player: a wolf move overrides a buffered sheep move (#34)', () => {
     const { engine } = makeEngine();
     engine.submitMove({ playerId: 'a', entity: 'sheep', dir: 'down' });
     engine.submitMove({ playerId: 'a', entity: 'wolf', dir: 'down' });
     engine.advanceTick(0);
-    expect(get(engine.state, 'a').sheep).toEqual({ x: 1, y: 1 });
-    expect(get(engine.state, 'a').wolf).toEqual({ x: 0, y: 1 });
+    expect(get(engine.state, 'a').sheep).toEqual({ x: 1, y: 0 }); // held
+    expect(get(engine.state, 'a').wolf).toEqual({ x: 0, y: 1 }); // newest command
   });
 });
 

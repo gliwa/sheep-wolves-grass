@@ -1,5 +1,5 @@
 // Round engine (WBS 3): owns one round's authoritative state, buffers move
-// commands (phase a — ≤1 per entity per tick, newest wins) and advances the
+// commands (phase a — ≤1 per player per tick, newest wins, #34) and advances the
 // simulation by composing the pure shared rules with grass-growth
 // scheduling. No timers in here: the real-time TickLoop (loop.ts) drives
 // advanceTick with wall-clock elapsed time, a chess-mode turn (WBS 7) calls
@@ -28,8 +28,8 @@ export class RoundEngine {
   private readonly rng: Rng;
   private readonly sheepKillBonus: number;
   private readonly chessTicksPerGrassGrow: number;
-  /** Buffered phase-(a) input, keyed per entity so the newest command wins. */
-  private readonly commands = new Map<string, MoveCommand>();
+  /** Buffered phase-(a) input, keyed per player (#34) so the newest command wins. */
+  private readonly commands = new Map<PlayerId, MoveCommand>();
   /** Real-time growth credit in grass units (cfgGrassGrowRate is per minute). */
   private grassCredit = 0;
   private ticksSinceGrassGrow = 0;
@@ -60,19 +60,19 @@ export class RoundEngine {
   }
 
   /**
-   * Buffer a move for the next tick; a newer command for the same entity
-   * replaces the older one. Commands from unknown, exited or knocked-out
-   * players may be buffered but are dropped by validation (phase b).
+   * Buffer a move for the next tick; a newer command from the same player
+   * replaces the older one — one move per player per tick, sheep or wolf
+   * (#34). Commands from unknown, exited or knocked-out players may be
+   * buffered but are dropped by validation (phase b).
    */
   submitMove(command: MoveCommand): void {
-    this.commands.set(`${command.playerId}/${command.entity}`, command);
+    this.commands.set(command.playerId, command);
   }
 
   /** Exit (E) or disconnect mid-round (DECISIONS.md #11). Check roundOver after. */
   exit(playerId: PlayerId): void {
     this.current = applyPlayerExit(this.current, playerId);
-    this.commands.delete(`${playerId}/sheep`);
-    this.commands.delete(`${playerId}/wolf`);
+    this.commands.delete(playerId);
   }
 
   /**

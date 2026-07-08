@@ -15,7 +15,8 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
    others hold. A sheep/wolf contest is deterministic under the phase model: the
    sheep arrives first (phase c) and the wolf eats it (phase d).
 3. **Move rate.** At most one command per entity per tick; holding a key gives
-   continuous movement (client repeats, server applies ≤1 per tick).
+   continuous movement (client repeats, server applies ≤1 per tick). *(Amended
+   2026-07-08 by #34: the limit is one command per **player** per tick.)*
 4. **Slip-past.** A sheep may pass a wolf on a same-tick cell swap (no eat).
    *(Now a consequence of the #23 phase order, not a separate rule.)*
 5. **Screens.** Hold screen removed — only start + play screens.
@@ -95,7 +96,8 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     Refines #2 (random winner only among same-type movers; a sheep/wolf contest
     is deterministic — the sheep arrives first, the sweep kills it), makes #4
     emergent (a swap leaves no co-location at sweep time; likewise a wolf moving
-    away spares a sheep that stepped onto it), amends #16.
+    away spares a sheep that stepped onto it), amends #16. *(Phase (a) amended
+    2026-07-08 by #34: ≤1 command per player, not per entity.)*
 24. **Chess turn input** *(2026-07-03)*. One move for one entity (sheep **or**
     wolf) per player per turn; a move against a wall is a legal pass. Knocked-out
     and exited players have nothing to move and are excluded from the all-inputs
@@ -166,6 +168,19 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     the next-round view (live + buffered keys). Process-level settings that
     are not game parameters — `PORT` (default 8080) and `STATIC_DIR` — are
     plain env vars, not `cfg*` keys.
+34. **One move per player per tick & bot speed throttle** *(2026-07-08)*.
+    Replaces the per-entity allowance (#3, #23 phase a): each tick a player
+    moves either their sheep **or** their wolf — the newest command wins. This
+    simplifies the rules, unifies real-time and chess input (#24 was already
+    one-per-player), and removes the bots' superhuman both-entities-at-once
+    play that made them unbeatable. Bots are additionally throttled by
+    `cfgBotSpeedThrottle`, the **idle-to-move tick ratio**
+    (`total ticks / moving ticks − 1`): 0 = a move every tick, 1 = half speed,
+    3 = quarter speed; fractions allowed, linear in the ratio (unlike an
+    every-Nth-tick divider). Implemented as a per-bot credit accumulator
+    (+`1/(1+throttle)` per tick, a full credit buys one move); humans are
+    never throttled. With one move per tick a bot must split attention:
+    flee a close wolf first, otherwise alternate hunting and grazing.
 
 ---
 

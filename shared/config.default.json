@@ -21,6 +21,7 @@
   "cfgChessVoteThreshold": 100,
   "cfgMaxNofPlayers": 10,
   "cfgTickMs": 100,
+  "cfgBotSpeedThrottle": 1,
   "cfgChessTicksPerGrassGrow": 5,
   "cfgChessTurnTimeout": 10,
   "cfgAllowClientOverrides": false

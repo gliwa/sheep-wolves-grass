@@ -19,7 +19,7 @@ import type {
 } from '@swg/shared';
 import { MAX_NAME_LENGTH, letterForIndex } from '@swg/shared';
 
-import { computeBotCommands } from './bots';
+import { computeBotCommand } from './bots';
 import { TickLoop } from './engine/loop';
 import { RoundEngine, computeRoundResult } from './engine/round';
 
@@ -52,6 +52,13 @@ export class Lobby {
   private loop: TickLoop | null = null;
   private countdownDeadline: number | null = null;
   private countdownTimer: NodeJS.Timeout | null = null;
+  /**
+   * Per-bot move credit for cfgBotSpeedThrottle (#34): the throttle is the
+   * idle-to-move tick ratio, so each tick adds 1/(1+throttle) credit and a
+   * full credit buys one move. 0 = every tick, 1 = every other tick, and
+   * fractions work — it's linear in the ratio, unlike an every-Nth-tick rule.
+   */
+  private readonly botMoveCredit = new Map<PlayerId, number>();
 
   constructor(options: LobbyOptions) {
     this.getConfig = options.getConfig;
@@ -271,6 +278,7 @@ export class Lobby {
       rng: this.rng,
     });
     this.engine = engine;
+    this.botMoveCredit.clear();
     for (const player of this.players) player.status = 'playing';
     this.emitLobby();
     this.events.onRoundStart(engine.state);
@@ -284,11 +292,17 @@ export class Lobby {
   private runTick(elapsedMs: number): boolean {
     const engine = this.engine;
     if (engine === null) return false;
+    const creditPerTick = 1 / (1 + Math.max(0, this.getConfig().cfgBotSpeedThrottle));
     for (const bot of this.players) {
       if (!bot.isBot) continue;
-      for (const command of computeBotCommands(engine.state, bot.id, this.rng)) {
-        engine.submitMove(command);
+      const credit = (this.botMoveCredit.get(bot.id) ?? 0) + creditPerTick;
+      if (credit < 1) {
+        this.botMoveCredit.set(bot.id, credit);
+        continue; // throttled this tick
       }
+      this.botMoveCredit.set(bot.id, credit - 1);
+      const command = computeBotCommand(engine.state, bot.id, this.rng);
+      if (command !== null) engine.submitMove(command);
     }
     const result = engine.advanceTick(elapsedMs);
     let statusChanged = false;

@@ -39,13 +39,17 @@ function cloneState(state: RoundState): RoundState {
   };
 }
 
-/** ≤1 command per entity per tick: if duplicates slip through, the last one wins. */
+/**
+ * ≤1 command per **player** per tick (DECISIONS.md #34): a player moves
+ * either their sheep or their wolf, never both. The newest command wins,
+ * whichever entity it steers — same rule in real-time and chess mode.
+ */
 function dedupeCommands(commands: MoveCommand[]): MoveCommand[] {
-  const byEntity = new Map<string, MoveCommand>();
+  const byPlayer = new Map<PlayerId, MoveCommand>();
   for (const command of commands) {
-    byEntity.set(`${command.playerId}/${command.entity}`, command);
+    byPlayer.set(command.playerId, command);
   }
-  return [...byEntity.values()];
+  return [...byPlayer.values()];
 }
 
 interface ValidMove {
@@ -123,7 +127,8 @@ function removeGrassAt(state: RoundState, pos: Vec2): boolean {
  * Resolve one tick (one turn in chess mode) through the fixed phases:
  * validate → move sheep (eat) → move wolves (trample) → kill sweep →
  * round-end check. Input collection (phase a) is the server's job; this
- * function assumes ≤1 command per entity and keeps the last on duplicates.
+ * function assumes ≤1 command per player (#34) and keeps the last on
+ * duplicates.
  */
 export function resolveTick(
   state: RoundState,

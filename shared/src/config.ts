@@ -19,6 +19,7 @@ export interface GameConfig {
   cfgChessVoteThreshold: number;
   cfgMaxNofPlayers: number;
   cfgTickMs: number;
+  cfgBotSpeedThrottle: number;
   cfgChessTicksPerGrassGrow: number;
   cfgChessTurnTimeout: number;
   cfgAllowClientOverrides: boolean;
@@ -62,6 +63,7 @@ export const CONFIG_SPECS: Record<ConfigKey, ParamSpec> = {
   cfgChessVoteThreshold: { value: { kind: 'int', min: 0, max: 100 }, mutability: 'next-round' },
   cfgMaxNofPlayers: { value: { kind: 'int', min: 2, max: 26 }, mutability: 'live' },
   cfgTickMs: { value: { kind: 'int', min: 0 }, mutability: 'live' },
+  cfgBotSpeedThrottle: { value: { kind: 'number', min: 0 }, mutability: 'live' },
   cfgChessTicksPerGrassGrow: { value: { kind: 'int', min: 1 }, mutability: 'next-round' },
   cfgChessTurnTimeout: { value: { kind: 'int', min: 0 }, mutability: 'live' },
   cfgAllowClientOverrides: { value: { kind: 'boolean' }, mutability: 'startup-only' },

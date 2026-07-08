@@ -32,7 +32,7 @@ function get(state: RoundState, id: string): RoundPlayer {
 }
 
 describe('resolveTick — movement & validation', () => {
-  it('moves a sheep and a wolf of the same player in one tick', () => {
+  it('applies only the newest command per player — sheep or wolf, never both (#34)', () => {
     const state = makeState([player('a', { x: 1, y: 1 }, { x: 5, y: 5 })]);
     const result = resolveTick(
       state,
@@ -40,8 +40,8 @@ describe('resolveTick — movement & validation', () => {
       KILL_BONUS,
       rngOf(),
     );
-    expect(get(result.state, 'a').sheep).toEqual({ x: 2, y: 1 });
-    expect(get(result.state, 'a').wolf).toEqual({ x: 5, y: 6 });
+    expect(get(result.state, 'a').sheep).toEqual({ x: 1, y: 1 }); // overridden
+    expect(get(result.state, 'a').wolf).toEqual({ x: 5, y: 6 }); // newest wins
     expect(result.state.tick).toBe(1);
   });
 
@@ -61,20 +61,21 @@ describe('resolveTick — movement & validation', () => {
     const state = makeState([
       player('a', { x: 1, y: 1 }, { x: 2, y: 1 }),
       player('b', { x: 1, y: 2 }, { x: 2, y: 2 }),
+      player('c', { x: 5, y: 5 }, { x: 2, y: 3 }),
     ]);
     const result = resolveTick(
       state,
       [
         move('a', 'sheep', 'right'), // own wolf
         move('b', 'sheep', 'up'), // foreign sheep (same type)
-        move('b', 'wolf', 'up'), // foreign wolf (same type)
+        move('c', 'wolf', 'up'), // foreign wolf (same type)
       ],
       KILL_BONUS,
       rngOf(),
     );
     expect(get(result.state, 'a').sheep).toEqual({ x: 1, y: 1 });
     expect(get(result.state, 'b').sheep).toEqual({ x: 1, y: 2 });
-    expect(get(result.state, 'b').wolf).toEqual({ x: 2, y: 2 });
+    expect(get(result.state, 'c').wolf).toEqual({ x: 2, y: 3 });
   });
 
   it('ignores commands from knocked-out and exited players (lonely wolf)', () => {
