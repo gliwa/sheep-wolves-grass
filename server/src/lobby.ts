@@ -127,7 +127,7 @@ export class Lobby {
     this.tryStartRound();
   }
 
-  /** B key; bots join 'ready' and never vote for chess (DECISIONS.md #6b). */
+  /** B key; bots join 'ready' and take no part in the chess vote (#35). */
   addBot(): LobbyPlayer | null {
     const bot = this.addPlayer(true);
     if (bot === null) return null;
@@ -216,10 +216,12 @@ export class Lobby {
     this.events.onLobby(this.snapshot());
   }
 
+  /** Humans only (#35): bots are not part of the electorate at all. */
   private chessVotePassed(): boolean {
-    if (this.players.length === 0) return false;
-    const votes = this.players.filter((p) => p.chessVote).length;
-    return (votes / this.players.length) * 100 >= this.getConfig().cfgChessVoteThreshold;
+    const humans = this.players.filter((p) => !p.isBot && p.status !== 'left');
+    if (humans.length === 0) return false;
+    const votes = humans.filter((p) => p.chessVote).length;
+    return (votes / humans.length) * 100 >= this.getConfig().cfgChessVoteThreshold;
   }
 
   private addPlayer(isBot: boolean): LobbyPlayer | null {

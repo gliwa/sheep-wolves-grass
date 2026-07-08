@@ -122,8 +122,9 @@ questions.
   forced to 'ready'; if only one player is present, a bot is auto-added.
 
 ### Chess mode (turn-based variant)
-- Players vote with `C`. Chess mode activates for the next round when the share of
-  players who voted ≥ `cfgChessVoteThreshold`. Default 100% = **all** players must
+- Only **humans** vote, with `C` — bots are not part of the electorate at all
+  (DECISIONS #35). Chess mode activates for the next round when the share of
+  humans who voted ≥ `cfgChessVoteThreshold`. Default 100% = **all** humans must
   vote. Not voting = a vote **against** chess.
 - A player's turn input is **one move for one entity** — either their sheep or
   their wolf. (A move against a wall is legal and acts as a "pass".)
@@ -132,8 +133,9 @@ questions.
   then the turn advances with whatever inputs arrived (missing players simply don't
   move that turn). Knocked-out and exited players have nothing to move and are
   excluded from the wait.
-- Bots always provide their turn input promptly, and always vote **against** chess
-  (a lone human can never be forced into chess mode).
+- Bots always provide their turn input promptly. They do not vote — with the
+  humans-only tally, a lone human playing against a bot can freely choose chess
+  mode (or not) at any threshold.
 
 ---
 
@@ -185,7 +187,7 @@ config.default.json  →  env vars  →  REST config API (runtime)  →  query p
 | `cfgGrassGrowRate` | number | commas/min | 20 | ≥ 0 | live |
 | `cfgMaxNofGrass` | int | count | 40 | 0 … interior cells | live |
 | `cfgStartTimeout` | int | seconds | 60 | ≥ 0 | live |
-| `cfgChessVoteThreshold` | int | percent | 100 | 0–100 | next-round |
+| `cfgChessVoteThreshold` | int | percent of humans | 100 | 0–100 | next-round |
 | `cfgMaxNofPlayers` | int | count | 10 | 2–26 (one letter each) | live |
 | `cfgTickMs` | int | ms | 100 | ≥ 0 (0 = uncapped, for optimization) | live |
 | `cfgBotSpeedThrottle` | number | idle-to-move tick ratio | 1 | ≥ 0 | live |

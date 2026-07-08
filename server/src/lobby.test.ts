@@ -195,19 +195,28 @@ describe('Lobby — ready flow & countdown', () => {
 });
 
 describe('Lobby — chess vote', () => {
-  it('tallies toggled votes against the threshold; bots count as against', () => {
+  it('tallies toggled votes of humans only; bots are not part of the electorate (#35)', () => {
     const { lobby } = makeLobby();
     const p1 = lobby.join()!;
     const p2 = lobby.join()!;
     lobby.voteChess(p1.id);
-    expect(lobby.snapshot().chessMode).toBe(false); // 1/2 < 100%
+    expect(lobby.snapshot().chessMode).toBe(false); // 1/2 humans < 100%
     lobby.voteChess(p2.id);
-    expect(lobby.snapshot().chessMode).toBe(true); // 2/2
+    expect(lobby.snapshot().chessMode).toBe(true); // 2/2 humans
     lobby.addBot();
-    expect(lobby.snapshot().chessMode).toBe(false); // 2/3 — bot never votes
+    expect(lobby.snapshot().chessMode).toBe(true); // still 2/2 — the bot is not counted
     lobby.voteChess(p1.id); // toggle off
     lobby.voteChess(p2.id);
     expect(lobby.snapshot().players.every((p) => !p.chessVote)).toBe(true);
+  });
+
+  it('a lone human with a bot can carry the vote at the 100% default (#35)', () => {
+    const { lobby } = makeLobby();
+    const p1 = lobby.join()!;
+    lobby.addBot();
+    expect(lobby.snapshot().chessMode).toBe(false);
+    lobby.voteChess(p1.id);
+    expect(lobby.snapshot().chessMode).toBe(true); // 1/1 humans
   });
 
   it('respects a lower threshold and consumes ballots at round start', () => {
@@ -279,9 +288,8 @@ describe('Lobby — chess mode (WBS 7)', () => {
   });
 
   it('bots answer promptly and ignore the speed throttle in chess mode', () => {
-    // Threshold 50: the human's single vote carries it despite the bot (#6b).
+    // Default 100% threshold: the lone human's vote carries it alone (#35).
     const { lobby, rec } = makeLobby({
-      cfgChessVoteThreshold: 50,
       cfgChessTurnTimeout: 10,
       cfgBotSpeedThrottle: 5,
     });

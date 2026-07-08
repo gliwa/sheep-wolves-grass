@@ -21,7 +21,8 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
    *(Now a consequence of the #23 phase order, not a separate rule.)*
 5. **Screens.** Hold screen removed — only start + play screens.
 6. **Chess activation.** Activates when voted share ≥ `cfgChessVoteThreshold`;
-   default 100% (all). Not voting = a vote against.
+   default 100% (all). Not voting = a vote against. *(Amended 2026-07-08 by
+   #35: the share is measured over **humans** only.)*
 7. **Chess turn timeout.** Per-turn timeout required (`cfgChessTurnTimeout`);
    turn advances with whatever inputs arrived, missing players don't move.
 8. **Chess grass growth.** Grows per `cfgChessTicksPerGrassGrow` ticks (not
@@ -74,7 +75,8 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     CB-distinct — tune via `cfgColors` if needed.)
 6b. **Bot chess vote.** Bots always vote **against** chess, so a lone human can
     never be forced into chess mode and the 100% default effectively means "all
-    humans agree." See [SPEC.md](./SPEC.md) chess mode.
+    humans agree." See [SPEC.md](./SPEC.md) chess mode. *(Superseded 2026-07-08
+    by #35: bots are not part of the electorate at all.)*
 22. **Configuration model.** Single flat JSON file (`shared/config.default.json`)
     is the source of truth; one shared `shared/` schema validates every surface.
     Precedence: file → env vars → REST config API → query params. Each param has a
@@ -156,9 +158,10 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     remain available to players *on* the start screen (e.g. mid-round joiners)
     while a round runs elsewhere.
 32. **Chess ballot handling** *(2026-07-08)*. `C` toggles the player's vote.
-    The tally (voted share vs `cfgChessVoteThreshold`, non-voters and bots
-    against) is shown continuously on the start screen and **consumed at round
-    start**: all ballots reset to 'against', so each round is voted on afresh.
+    The tally (voted share vs `cfgChessVoteThreshold`, non-voting humans count
+    against, bots not at all — #35) is shown continuously on the start screen
+    and **consumed at round start**: all ballots reset to 'against', so each
+    round is voted on afresh.
 33. **Startup vs runtime config failures** *(2026-07-08)*. Invalid `cfg*` env
     vars are **fatal at boot** (like a bad default file — fail where the
     operator sees it), while runtime changes (REST PATCH, query params) are
@@ -181,6 +184,13 @@ review. See [SPEC.md](./SPEC.md) for the resulting specification and
     (+`1/(1+throttle)` per tick, a full credit buys one move); humans are
     never throttled. With one move per tick a bot must split attention:
     flee a close wolf first, otherwise alternate hunting and grazing.
+35. **Chess electorate is humans only** *(2026-07-08, supersedes #6b)*. Bots
+    take no part in the chess vote: they neither vote nor count in the
+    denominator. The share is `voting humans / present (non-left) humans`,
+    compared against `cfgChessVoteThreshold`; with zero humans there is no
+    chess (moot — bots never play alone, #30). Consequence: a lone human
+    playing against a bot can now activate chess at the default 100%
+    threshold, which #6b's implicit bot-against vote made impossible.
 
 ---
 
